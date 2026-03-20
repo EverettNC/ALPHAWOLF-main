@@ -1,0 +1,28 @@
+{
+    "folders": [
+        {
+            "name": "🐺 AlphaWolf - AI Ecosystem",
+            "path": "/Users/EverettN/ALPHAWOLF-main"
+        }
+    ],
+    "settings": {
+        "python.pythonPath": "/Users/EverettN/Inferno/.venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/*.pyc": true,
+            "**/node_modules": true,
+            "alphawolf/layer/python": true
+        },
+        "terminal.integrated.cwd": "/Users/EverettN/ALPHAWOLF-main",
+        "terminal.integrated.defaultProfile.osx": "zsh"
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.flake8",
+            "ms-python.pylint",
+            "ms-toolsai.jupyter"
+        ]
+    }
+}

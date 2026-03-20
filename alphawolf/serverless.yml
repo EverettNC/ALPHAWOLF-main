@@ -1,0 +1,428 @@
+###############################################################################
+# AlphaWolf Serverless Configuration
+# Part of The Christman AI Project - LumaCognify AI
+#
+# This configuration defines the AWS serverless architecture for AlphaWolf.
+#
+# "HOW CAN I HELP YOU LOVE YOURSELF MORE"
+###############################################################################
+
+service: alphawolf
+
+frameworkVersion: '>=3.0.0 <4.0.0'
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
+    slim: true
+    useDownloadCache: true
+    useStaticCache: true
+    layer: true
+  # SQS queues
+  alertQueue: alphawolf-alerts-${self:provider.stage}
+  # Lambda layer name for common code
+  layerName: alphawolf-common-${self:provider.stage}
+  # DynamoDB tables
+  interactionsTable: alphawolf-interactions-${self:provider.stage}
+  locationsTable: alphawolf-locations-${self:provider.stage}
+  contentTable: alphawolf-content-${self:provider.stage}
+  # S3 buckets
+  contentBucket: alphawolf-content-${self:provider.stage}
+  # CloudWatch logs
+  logRetentionInDays: 30
+
+provider:
+  name: aws
+  runtime: python3.9
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  memorySize: 256
+  timeout: 30
+  logRetentionInDays: ${self:custom.logRetentionInDays}
+  apiGateway:
+    minimumCompressionSize: 1024
+    shouldStartNameWithService: true
+    metrics: true
+  environment:
+    STAGE: ${self:provider.stage}
+    REGION: ${self:provider.region}
+    ALERT_QUEUE_URL: !Ref AlertQueue
+    INTERACTIONS_TABLE: ${self:custom.interactionsTable}
+    LOCATIONS_TABLE: ${self:custom.locationsTable}
+    CONTENT_TABLE: ${self:custom.contentTable}
+    CONTENT_BUCKET: ${self:custom.contentBucket}
+    LOG_LEVEL: ${env:LOG_LEVEL, 'INFO'}
+    ALERT_NOTIFICATION_EMAIL: ${env:ALERT_NOTIFICATION_EMAIL, 'alerts@example.com'}
+    HIGH_RISK_THRESHOLD: ${env:HIGH_RISK_THRESHOLD, '0.7'}
+    MEDIUM_RISK_THRESHOLD: ${env:MEDIUM_RISK_THRESHOLD, '0.4'}
+    MAX_CACHE_AGE_DAYS: ${env:MAX_CACHE_AGE_DAYS, '7'}
+    CONTENT_CRAWLER_ENABLED: ${env:CONTENT_CRAWLER_ENABLED, 'true'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource: !GetAtt AlertQueue.Arn
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+          Resource:
+            - !GetAtt InteractionsTable.Arn
+            - !GetAtt LocationsTable.Arn
+            - !GetAtt ContentTable.Arn
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+            - s3:ListBucket
+          Resource:
+            - !GetAtt ContentBucket.Arn
+            - !Join ['', [!GetAtt ContentBucket.Arn, '/*']]
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: arn:aws:logs:*:*:*
+
+functions:
+  # API Endpoint Lambda Functions
+  apiHandler:
+    handler: api/lambda_function.lambda_handler
+    description: Main AlphaWolf API handler
+    events:
+      - http:
+          path: /api/v1/analyze
+          method: post
+          cors: true
+      - http:
+          path: /api/v1/safety
+          method: post
+          cors: true
+      - http:
+          path: /api/v1/track
+          method: post
+          cors: true
+      - http:
+          path: /health
+          method: get
+          cors: true
+    layers:
+      - !Ref CommonLibsLambdaLayer
+    environment:
+      FUNCTION_NAME: apiHandler
+
+  # Risk Analysis Lambda Function
+  riskAnalyzer:
+    handler: core/risk_model.lambda_handler
+    description: Analyzes potential risks in user input
+    events:
+      - http:
+          path: /api/v1/risk
+          method: post
+          cors: true
+      - sqs:
+          arn: !GetAtt AlertQueue.Arn
+          batchSize: 10
+    layers:
+      - !Ref CommonLibsLambdaLayer
+    environment:
+      FUNCTION_NAME: riskAnalyzer
+
+  # Family Protection Lambda Function
+  familyProtection:
+    handler: core/family_protection.lambda_handler
+    description: Handles family protection features like geofencing
+    events:
+      - http:
+          path: /api/v1/protection
+          method: post
+          cors: true
+    layers:
+      - !Ref CommonLibsLambdaLayer
+    environment:
+      FUNCTION_NAME: familyProtection
+
+  # Content Crawler Lambda Function
+  webCrawler:
+    handler: core/web_crawler.lambda_handler
+    description: Crawls authoritative websites for content
+    events:
+      - schedule: rate(12 hours)
+    timeout: 300  # 5 minutes
+    memorySize: 512
+    layers:
+      - !Ref CommonLibsLambdaLayer
+    environment:
+      FUNCTION_NAME: webCrawler
+
+  # Alert Processor Lambda Function
+  alertProcessor:
+    handler: core/alert_processor.lambda_handler
+    description: Processes alerts from various sources
+    events:
+      - sqs:
+          arn: !GetAtt AlertQueue.Arn
+          batchSize: 10
+          maximumBatchingWindow: 60
+    layers:
+      - !Ref CommonLibsLambdaLayer
+    environment:
+      FUNCTION_NAME: alertProcessor
+
+# Lambda Layers for shared code
+layers:
+  commonLibs:
+    name: ${self:custom.layerName}
+    description: Common libraries for AlphaWolf functions
+    compatibleRuntimes:
+      - python3.9
+    path: layer
+
+# AWS Resources
+resources:
+  Resources:
+    # SQS Alert Queue
+    AlertQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.alertQueue}
+        VisibilityTimeout: 300
+        MessageRetentionPeriod: 1209600  # 14 days
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt AlertDeadLetterQueue.Arn
+          maxReceiveCount: 5
+
+    # Dead Letter Queue for failed alert processing
+    AlertDeadLetterQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.alertQueue}-dlq
+        MessageRetentionPeriod: 1209600  # 14 days
+
+    # DynamoDB Tables
+    InteractionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.interactionsTable}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: request_id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+        KeySchema:
+          - AttributeName: request_id
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+    LocationsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.locationsTable}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: user_id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: S
+        KeySchema:
+          - AttributeName: user_id
+            KeyType: HASH
+          - AttributeName: timestamp
+            KeyType: RANGE
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+
+    ContentTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.contentTable}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: content_id
+            AttributeType: S
+          - AttributeName: category
+            AttributeType: S
+        KeySchema:
+          - AttributeName: content_id
+            KeyType: HASH
+          - AttributeName: category
+            KeyType: RANGE
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+
+    # S3 Bucket for content storage
+    ContentBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.contentBucket}
+        AccessControl: Private
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        LifecycleConfiguration:
+          Rules:
+            - Id: ExpireOldContent
+              Status: Enabled
+              ExpirationInDays: 365
+              NoncurrentVersionExpirationInDays: 30
+
+    # SNS Topic for alerts
+    AlertTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: alphawolf-alerts-${self:provider.stage}
+        DisplayName: AlphaWolf Alerts
+        Subscription:
+          - Protocol: email
+            Endpoint: ${env:ALERT_NOTIFICATION_EMAIL, 'alerts@example.com'}
+
+    # CloudWatch Dashboard
+    AlphaWolfDashboard:
+      Type: AWS::CloudWatch::Dashboard
+      Properties:
+        DashboardName: AlphaWolf-${self:provider.stage}
+        DashboardBody: !Sub |
+          {
+            "widgets": [
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 0,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/Lambda", "Invocations", "FunctionName", "alphawolf-${self:provider.stage}-apiHandler" ],
+                    [ ".", ".", ".", "alphawolf-${self:provider.stage}-riskAnalyzer" ],
+                    [ ".", ".", ".", "alphawolf-${self:provider.stage}-familyProtection" ],
+                    [ ".", ".", ".", "alphawolf-${self:provider.stage}-webCrawler" ],
+                    [ ".", ".", ".", "alphawolf-${self:provider.stage}-alertProcessor" ]
+                  ],
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "region": "${AWS::Region}",
+                  "title": "Lambda Invocations",
+                  "period": 300
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12,
+                "y": 0,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/Lambda", "Errors", "FunctionName", "alphawolf-${self:provider.stage}-apiHandler" ],
+                    [ ".", ".", ".", "alphawolf-${self:provider.stage}-riskAnalyzer" ],
+                    [ ".", ".", ".", "alphawolf-${self:provider.stage}-familyProtection" ],
+                    [ ".", ".", ".", "alphawolf-${self:provider.stage}-webCrawler" ],
+                    [ ".", ".", ".", "alphawolf-${self:provider.stage}-alertProcessor" ]
+                  ],
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "region": "${AWS::Region}",
+                  "title": "Lambda Errors",
+                  "period": 300
+                }
+              },
+              {
+                "type": "metric",
+                "x": 0,
+                "y": 6,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/SQS", "NumberOfMessagesReceived", "QueueName", "${self:custom.alertQueue}" ],
+                    [ ".", "NumberOfMessagesDeleted", ".", "." ]
+                  ],
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "region": "${AWS::Region}",
+                  "title": "SQS Messages",
+                  "period": 300
+                }
+              },
+              {
+                "type": "metric",
+                "x": 12,
+                "y": 6,
+                "width": 12,
+                "height": 6,
+                "properties": {
+                  "metrics": [
+                    [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${self:custom.interactionsTable}" ],
+                    [ ".", "ConsumedWriteCapacityUnits", ".", "." ],
+                    [ ".", "ConsumedReadCapacityUnits", ".", "${self:custom.locationsTable}" ],
+                    [ ".", "ConsumedWriteCapacityUnits", ".", "." ],
+                    [ ".", "ConsumedReadCapacityUnits", ".", "${self:custom.contentTable}" ],
+                    [ ".", "ConsumedWriteCapacityUnits", ".", "." ]
+                  ],
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "region": "${AWS::Region}",
+                  "title": "DynamoDB Consumed Capacity",
+                  "period": 300
+                }
+              }
+            ]
+          }
+
+  # Output values to display after deployment
+  Outputs:
+    ApiEndpoint:
+      Description: API Gateway endpoint URL
+      Value: !Sub https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}
+    AlertQueueUrl:
+      Description: SQS Queue URL for alerts
+      Value: !Ref AlertQueue
+    AlertQueueArn:
+      Description: SQS Queue ARN for alerts
+      Value: !GetAtt AlertQueue.Arn
+    ContentBucketName:
+      Description: S3 Bucket for content storage
+      Value: !Ref ContentBucket
+    InteractionsTableName:
+      Description: DynamoDB table for interactions
+      Value: !Ref InteractionsTable
+    LocationsTableName:
+      Description: DynamoDB table for location tracking
+      Value: !Ref LocationsTable
+    ContentTableName:
+      Description: DynamoDB table for content
+      Value: !Ref ContentTable
+    DashboardUrl:
+      Description: CloudWatch Dashboard URL
+      Value: !Sub https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=AlphaWolf-${self:provider.stage}

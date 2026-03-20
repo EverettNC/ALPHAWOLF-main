@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+    #alertMap {
+        height: 300px;
+        width: 100%;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .alert-item {
+        transition: all 0.3s ease;
+    }
+    .alert-item:hover {
+        background-color: rgba(0,0,0,0.02);
+    }
+    .alert-critical {
+        border-left: 4px solid #dc3545;
+    }
+    .alert-warning {
+        border-left: 4px solid #ffc107;
+    }
+    .alert-resolved {
+        opacity: 0.7;
+    }
+    .alert-timestamp {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>
+            <i data-feather="alert-triangle"></i>
+            Safety Alerts
+        </h1>
+        <p class="lead">Monitor and manage safety alerts for patients</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Alert Map</h5>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="refreshAlerts">
+                        <i data-feather="refresh-cw"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="alertMap"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Alerts</h5>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm active" id="showAllAlerts">All</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="showActiveAlerts">Active</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="showResolvedAlerts">Resolved</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="list-group" id="alertsList">
+                    {% for alert in alerts %}
+                    <div class="list-group-item list-group-item-action alert-item {% if 'CRITICAL' in alert.message %}alert-critical{% else %}alert-warning{% endif %} {% if alert.is_resolved %}alert-resolved{% endif %}" 
+                         data-status="{% if alert.is_resolved %}resolved{% else %}active{% endif %}">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <h5 class="mb-1">
+                                {% if alert.patient %}{{ alert.patient.name }}{% else %}Unknown Patient{% endif %}
+                                <span class="badge {% if 'CRITICAL' in alert.message %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                    {{ alert.alert_type|upper }}
+                                </span>
+                                {% if alert.is_resolved %}
+                                <span class="badge bg-secondary">Resolved</span>
+                                {% endif %}
+                            </h5>
+                            <small class="alert-timestamp">{{ alert.timestamp|datetime }}</small>
+                        </div>
+                        <p class="mb-1">{{ alert.message }}</p>
+                        {% if not alert.is_resolved %}
+                        <div class="d-flex justify-content-end mt-2">
+                            <form action="{{ url_for('resolve_alert') }}" method="post" class="me-2">
+                                <input type="hidden" name="alert_id" value="{{ alert.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                    <i data-feather="check"></i> Mark Resolved
+                                </button>
+                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-primary view-on-map" 
+                                    data-lat="{{ alert.latitude }}" 
+                                    data-lng="{{ alert.longitude }}"
+                                    data-message="{{ alert.message }}">
+                                <i data-feather="map-pin"></i> View on Map
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i data-feather="info"></i> No alerts to display. That's good news!
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize the alert map using our custom function
+        const safeZones = {{ safe_zones_json|safe }};
+        const alerts = {{ alerts_json|safe }};
+        const { map } = initAlertMap('alertMap', safeZones, alerts);
+        
+        // View on map button
+        document.querySelectorAll('.view-on-map').forEach(button => {
+            button.addEventListener('click', function() {
+                const lat = parseFloat(this.getAttribute('data-lat'));
+                const lng = parseFloat(this.getAttribute('data-lng'));
+                const message = this.getAttribute('data-message');
+                
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    map.setView([lat, lng], 16);
+                    
+                    // Create a temporary marker if none exists
+                    L.marker([lat, lng])
+                        .addTo(map)
+                        .bindPopup(message)
+                        .openPopup();
+                }
+            });
+        });
+        
+        // Filter buttons
+        document.getElementById('showAllAlerts').addEventListener('click', function() {
+            toggleActiveClass(this);
+            filterAlerts('all');
+        });
+        
+        document.getElementById('showActiveAlerts').addEventListener('click', function() {
+            toggleActiveClass(this);
+            filterAlerts('active');
+        });
+        
+        document.getElementById('showResolvedAlerts').addEventListener('click', function() {
+            toggleActiveClass(this);
+            filterAlerts('resolved');
+        });
+        
+        function toggleActiveClass(clickedButton) {
+            document.querySelectorAll('.btn-group .btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            clickedButton.classList.add('active');
+        }
+        
+        function filterAlerts(filter) {
+            document.querySelectorAll('.alert-item').forEach(item => {
+                if (filter === 'all' || item.getAttribute('data-status') === filter) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        // Refresh alerts
+        document.getElementById('refreshAlerts').addEventListener('click', function() {
+            window.location.reload();
+        });
+        
+        // Initialize feather icons in dynamically loaded content
+        feather.replace();
+    });
+</script>
+{% endblock %}

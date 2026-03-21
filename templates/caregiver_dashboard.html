@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Caregiver Dashboard{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/caregivers_page.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Welcome Header -->
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <div class="alert alert-info" role="alert">
+        <h4 class="alert-heading">
+          Welcome{% if caregiver %}, {{ caregiver.name }}{% endif %} — Caregiver Command Center
+        </h4>
+        <p>AlphaWolf is actively monitoring your patients. Here's your live overview.</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Quick Links</h5>
+          <ul class="nav flex-column">
+            <li class="nav-item"><a class="nav-link" href="#patients-section">Patients</a></li>
+            <li class="nav-item"><a class="nav-link" href="#safety-section">Safety & Zones</a></li>
+            <li class="nav-item"><a class="nav-link" href="#care-tools">Care Tools</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('caregivers_page') }}">Full Caregiver Hub</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patients Section -->
+  <section id="patients-section" class="mb-5">
+    <div class="section-header">
+      <h2>Patient Overview</h2>
+      <p class="text-muted">Your patients being monitored by AlphaWolf</p>
+    </div>
+
+    {% if patients %}
+    <div class="row">
+      {% for patient in patients %}
+      <div class="col-md-4 mb-3">
+        <div class="status-card">
+          <div class="status-card-header">
+            <h5>{{ patient.name }}</h5>
+          </div>
+          <div class="status-card-body">
+            {% if patient.age or patient.condition %}
+            <div class="status-metric">
+              <span class="metric-label">
+                {% if patient.age %}Age {{ patient.age }}{% endif %}
+                {% if patient.condition %}&bull; {{ patient.condition }}{% endif %}
+              </span>
+            </div>
+            {% endif %}
+            <div class="status-metric mt-2">
+              <span class="metric-label">Status:</span>
+              <span class="badge bg-success ms-2">Safe</span>
+            </div>
+            <div class="mt-3 d-flex gap-2">
+              <a href="{{ url_for('reminders') }}" class="btn btn-sm btn-outline-primary">Reminders</a>
+              <a href="{{ url_for('cognitive_exercises') }}" class="btn btn-sm btn-outline-secondary">Exercises</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+      <div class="card-body text-center text-muted py-4">
+        <i class="fas fa-user-plus fa-2x mb-3 d-block"></i>
+        No patients registered yet.
+        <div class="mt-3">
+          <a href="{{ url_for('register') }}" class="btn btn-outline-primary">Register a Patient</a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- Safety & Zones Section -->
+  <section id="safety-section" class="mb-5">
+    <div class="section-header">
+      <h2>Safety & Alerts</h2>
+      <p class="text-muted">Active safe zones and current alerts</p>
+    </div>
+
+    <div class="row">
+      <!-- Safe Zones -->
+      <div class="col-md-6 mb-3">
+        <div class="status-card">
+          <div class="status-card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Active Safe Zones</h5>
+            <a href="{{ url_for('safety_zones') }}" class="btn btn-sm btn-outline-light">Manage</a>
+          </div>
+          <div class="status-card-body">
+            {% if safe_zones %}
+              {% for zone in safe_zones %}
+              <div class="status-metric">
+                <i class="fas fa-map-marker-alt text-success me-2"></i>
+                <span class="metric-label">{{ zone.name }}</span>
+                {% if zone.radius %}
+                  <small class="text-muted ms-2">{{ zone.radius }}m radius</small>
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted mb-2">No safe zones defined.</p>
+              <a href="{{ url_for('safety_zones') }}" class="btn btn-sm btn-outline-primary">Add Safe Zone</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="col-md-6 mb-3">
+        <div class="status-card">
+          <div class="status-card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Active Alerts</h5>
+            <a href="{{ url_for('view_alerts') }}" class="btn btn-sm btn-outline-light">View All</a>
+          </div>
+          <div class="status-card-body" id="alerts-body">
+            <p class="text-muted">Checking alerts...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Care Tools Section -->
+  <section id="care-tools" class="mb-5">
+    <div class="section-header">
+      <h2>Care Tools</h2>
+      <p class="text-muted">Everything you need to support your patients</p>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <div class="resource-card">
+          <div class="resource-icon">
+            <i class="fas fa-bell"></i>
+          </div>
+          <div class="resource-content">
+            <h5>Reminders</h5>
+            <ul class="resource-list">
+              <li>Medication schedules</li>
+              <li>Appointments</li>
+              <li>Daily routines</li>
+            </ul>
+            <a href="{{ url_for('reminders') }}" class="btn btn-outline-primary mt-2">Manage Reminders</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 mb-3">
+        <div class="resource-card">
+          <div class="resource-icon">
+            <i class="fas fa-brain"></i>
+          </div>
+          <div class="resource-content">
+            <h5>Cognitive Exercises</h5>
+            <ul class="resource-list">
+              <li>Memory exercises</li>
+              <li>Pattern recognition</li>
+              <li>Word association</li>
+            </ul>
+            <a href="{{ url_for('cognitive_exercises') }}" class="btn btn-outline-primary mt-2">View Exercises</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 mb-3">
+        <div class="resource-card">
+          <div class="resource-icon">
+            <i class="fas fa-video"></i>
+          </div>
+          <div class="resource-content">
+            <h5>Training Videos</h5>
+            <ul class="resource-list">
+              <li>Transfer techniques</li>
+              <li>Bathing &amp; hygiene</li>
+              <li>Redirection strategies</li>
+            </ul>
+            <a href="{{ url_for('caregiver_videos') }}" class="btn btn-outline-primary mt-2">Watch Videos</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 mb-3">
+        <div class="resource-card">
+          <div class="resource-icon">
+            <i class="fas fa-clipboard-check"></i>
+          </div>
+          <div class="resource-content">
+            <h5>Stress Assessment</h5>
+            <ul class="resource-list">
+              <li>5-minute assessment</li>
+              <li>Personalized results</li>
+              <li>Self-care resources</li>
+            </ul>
+            <a href="{{ url_for('caregiver_assessment') }}" class="btn btn-outline-primary mt-2">Take Assessment</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 mb-3">
+        <div class="resource-card">
+          <div class="resource-icon">
+            <i class="fas fa-photo-video"></i>
+          </div>
+          <div class="resource-content">
+            <h5>Memory Lane</h5>
+            <ul class="resource-list">
+              <li>Photo albums</li>
+              <li>Life stories</li>
+              <li>Music memories</li>
+            </ul>
+            <a href="{{ url_for('memory_lane') }}" class="btn btn-outline-primary mt-2">Open Memory Lane</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 mb-3">
+        <div class="resource-card">
+          <div class="resource-icon">
+            <i class="fas fa-life-ring"></i>
+          </div>
+          <div class="resource-content">
+            <h5>Support Hub</h5>
+            <ul class="resource-list">
+              <li>Support groups</li>
+              <li>Community discussions</li>
+              <li>Caregiver stories</li>
+            </ul>
+            <a href="{{ url_for('caregivers_page') }}" class="btn btn-outline-primary mt-2">Go to Hub</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  fetch('/api/alerts')
+    .then(r => r.json())
+    .then(data => {
+      const alerts = Array.isArray(data) ? data : (data.alerts || []);
+      const active = alerts.filter(a => !a.resolved && !a.is_resolved);
+      const body = document.getElementById('alerts-body');
+      if (active.length === 0) {
+        body.innerHTML = '<p class="text-success mb-0"><i class="fas fa-check-circle me-1"></i> All clear — no active alerts.</p>';
+      } else {
+        body.innerHTML = active.slice(0, 5).map(a => `
+          <div class="status-metric">
+            <i class="fas fa-exclamation-circle text-warning me-2"></i>
+            <span class="metric-label">${a.message || a.description || 'Alert'}</span>
+          </div>
+        `).join('') + `<div class="mt-3"><a href="/alerts" class="btn btn-sm btn-warning">View All (${active.length})</a></div>`;
+      }
+    })
+    .catch(() => {
+      document.getElementById('alerts-body').innerHTML =
+        '<p class="text-success mb-0"><i class="fas fa-check-circle me-1"></i> All clear.</p>';
+    });
+</script>
+{% endblock %}

@@ -31,22 +31,10 @@ except ImportError:
     ADVANCED_MODE = False
     logger.info("Using basic NLP mode (numpy not available)")
 
-# Perplexity API client
-try:
-    from perplexity_service import PerplexityService
+import requests as _requests
 
-    perplexity_client = None
-    # Check for API key
-    if os.environ.get("PERPLEXITY_API_KEY"):
-        perplexity_client = PerplexityService()
-        logging.info("Perplexity API initialized successfully")
-    else:
-        logging.warning("Perplexity API key not found in environment variables")
-except ImportError:
-    logging.warning(
-        "Perplexity API not available: No module named 'perplexity_service'"
-    )
-    perplexity_client = None
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_CHAT_MODEL = os.environ.get("OLLAMA_CHAT_MODEL", "qwen2.5")
 
 
 class ConversationEngine:
@@ -287,21 +275,9 @@ class ConversationEngine:
     def _generate_advanced_response(
         self, text: str, context: Optional[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """Generate a response using Perplexity API.
-
-        Args:
-            text: User input text
-            context: Context information
-
-        Returns:
-            dict: Response with message, intent, etc.
-        """
-        if not perplexity_client:
-            raise Exception("Perplexity API not available or not initialized")
-
-        # Create system prompt
+        """Generate a response using Ollama local inference."""
         system_prompt = (
-            "You are AlphaVox, an AI assistant designed to help with communication. "
+            "You are AlphaWolf, a compassionate AI assistant for cognitive care. "
             "Provide helpful, clear, and supportive responses."
         )
         if context:
@@ -309,17 +285,25 @@ class ConversationEngine:
                 f"{k}: {v}" for k, v in context.items()
             )
 
-        # Send request to Perplexity API
-        result = perplexity_client.generate_content(
-            prompt=text, system_prompt=system_prompt, max_tokens=1024, temperature=0.7
-        )
-
-        # Check for errors
-        if "error" in result:
-            raise Exception(result["error"])
+        try:
+            resp = _requests.post(
+                f"{OLLAMA_URL}/api/chat",
+                json={
+                    "model": OLLAMA_CHAT_MODEL,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": text}
+                    ],
+                    "stream": False
+                },
+                timeout=30
+            )
+            resp.raise_for_status()
+            message = resp.json()["message"]["content"]
+        except Exception as e:
+            raise Exception(f"Ollama unavailable: {e}")
 
         # Extract response text
-        message = result.get("content", "I'm sorry, I couldn't generate a response.")
 
         # Basic emotion analysis
         emotion_words = {

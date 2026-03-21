@@ -123,6 +123,10 @@ class AlphaWolfBrain:
         if OriginalBrain:
             self.original_brain = OriginalBrain(memory_path=memory_path)
 
+    def start_learning_systems(self):
+        """Start background learning systems (no-op stub — learning runs passively)."""
+        logger.info("🧠 AlphaWolf learning systems active")
+
     def generate_greeting(self) -> str:
         """Generate a warm, welcoming greeting"""
         import random
@@ -302,4 +306,15 @@ class AlphaWolfBrain:
 # Global instance
 alphawolf_brain = AlphaWolfBrain()
 
-__all__ = ['AlphaWolfBrain', 'alphawolf_brain']
+
+def get_alphawolf_brain() -> AlphaWolfBrain:
+    return alphawolf_brain
+
+
+def initialize_alphawolf(memory_path: str = "./memory/alphawolf_memory.json") -> AlphaWolfBrain:
+    global alphawolf_brain
+    alphawolf_brain = AlphaWolfBrain(memory_path=memory_path)
+    return alphawolf_brain
+
+
+__all__ = ['AlphaWolfBrain', 'alphawolf_brain', 'get_alphawolf_brain', 'initialize_alphawolf']

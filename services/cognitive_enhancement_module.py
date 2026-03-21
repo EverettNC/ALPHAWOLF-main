@@ -3,8 +3,6 @@ import logging
 import json
 import hashlib
 from datetime import datetime
-import openai
-from openai import OpenAI
 import threading
 import time
 import schedule
@@ -46,9 +44,6 @@ class CognitiveEnhancementModule:
         
         # Load patient cognitive models
         self.patient_models = self._load_patient_models()
-        
-        # Set up OpenAI client
-        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         
         # Set up background learning thread
         self.learning_thread = None

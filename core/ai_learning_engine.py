@@ -22,12 +22,13 @@ import threading
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
-from openai import OpenAI
+import requests
 from memory_engine import MemoryEngine
 
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "qwen3-embedding")
 memory_engine = MemoryEngine(file_path="./memory/memory_store.json")
  
 
@@ -578,11 +579,13 @@ def learn_from_text(text: str):
         return "No text provided"
 
     try:
-        emb = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text
+        resp = requests.post(
+            f"{OLLAMA_URL}/api/embeddings",
+            json={"model": OLLAMA_EMBED_MODEL, "prompt": text},
+            timeout=30
         )
-        vector = emb.data[0].embedding
+        resp.raise_for_status()
+        vector = resp.json().get("embedding", [])
         memory_engine.save({
             "type": "web_ingest",
             "text": text,

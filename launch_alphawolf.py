@@ -55,7 +55,7 @@ def check_environment():
     """Check if environment is properly configured."""
     print_status("Checking environment configuration...", "info")
     
-    required_vars = ['OPENAI_API_KEY', 'SESSION_SECRET']
+    required_vars = ['SESSION_SECRET']
     missing = []
     
     for var in required_vars:

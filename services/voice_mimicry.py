@@ -19,7 +19,7 @@ import tempfile
 import base64
 from io import BytesIO
 
-from openai import OpenAI
+import requests
 from gtts import gTTS
 import uuid
 from dotenv import load_dotenv
@@ -30,17 +30,21 @@ load_dotenv()
 # ...existing imports...
 logger = logging.getLogger(__name__)
 
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_CHAT_MODEL = os.environ.get("OLLAMA_CHAT_MODEL", "qwen2.5")
+
 class VoiceMimicryEngine:
     """
     Enhanced voice system that can analyze, learn from, and mimic individual
     patient voices for more personalized and effective communication.
     """
-    
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        
-        # Set up OpenAI client
-        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+        # Ollama local inference — no API key required
+        self.ollama_url = OLLAMA_URL
+        self.ollama_model = OLLAMA_CHAT_MODEL
         
         # Set up storage directories
         self.voice_models_dir = os.path.join('data', 'voice_models')
@@ -313,33 +317,41 @@ class VoiceMimicryEngine:
             
             # If transcript is available, analyze it for speech patterns
             if transcript:
-                # Use OpenAI to analyze the transcript for speech patterns
-                analysis_prompt = f"""
-                Analyze this speech transcript and extract speech pattern characteristics:
-                "{transcript}"
-                
-                Provide your analysis as a JSON object with the following structure:
-                {{
-                    "speech_rate": 0.1-2.0 (0.1 is very slow, 1.0 is average, 2.0 is very fast),
-                    "pitch_estimate": 0.1-2.0 (0.1 is very low, 1.0 is average, 2.0 is very high),
-                    "pause_frequency": 0.1-2.0 (frequency of pauses, 1.0 is average),
-                    "emphasized_words": ["word1", "word2"],
-                    "speech_patterns": ["pattern1", "pattern2"],
-                    "dialect_markers": ["marker1", "marker2"],
-                    "repetition_patterns": ["pattern1", "pattern2"],
-                    "filler_words": ["um", "like", etc]
-                }}
-                """
-                
-                response = self.client.chat.completions.create(
-                    model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024. Do not change this unless explicitly requested by the user
-                    messages=[{"role": "system", "content": "You are a speech pattern analysis specialist."},
-                             {"role": "user", "content": analysis_prompt}],
-                    response_format={"type": "json_object"}
-                )
-                
-                # Parse response
-                text_analysis = json.loads(response.choices[0].message.content)
+                # Use Ollama local inference to analyze the transcript for speech patterns
+                analysis_prompt = f"""Analyze this speech transcript and extract speech pattern characteristics:
+"{transcript}"
+
+Respond with ONLY a JSON object (no markdown) with this structure:
+{{
+    "speech_rate": 1.0,
+    "pitch_estimate": 1.0,
+                    "pause_frequency": 1.0,
+    "emphasized_words": [],
+    "speech_patterns": [],
+    "dialect_markers": [],
+    "repetition_patterns": [],
+    "filler_words": []
+}}"""
+
+                try:
+                    resp = requests.post(
+                        f"{self.ollama_url}/api/chat",
+                        json={
+                            "model": self.ollama_model,
+                            "messages": [
+                                {"role": "system", "content": "You are a speech pattern analysis specialist. Always respond with valid JSON only."},
+                                {"role": "user", "content": analysis_prompt}
+                            ],
+                            "stream": False,
+                            "format": "json"
+                        },
+                        timeout=30
+                    )
+                    resp.raise_for_status()
+                    text_analysis = json.loads(resp.json()["message"]["content"])
+                except Exception as ollama_err:
+                    self.logger.warning(f"Ollama transcript analysis unavailable: {ollama_err}")
+                    text_analysis = {}
                 
                 # Update analysis with text-based insights
                 analysis['rate'] = text_analysis.get('speech_rate', analysis['rate'])

@@ -163,6 +163,18 @@ with app.app_context():
         db.session.commit()
         logger.info("Initialized default cognitive exercises")
 
+    # Seed missing exercises (ensure at least 6 exist)
+    from models import CognitiveExercise
+    if CognitiveExercise.query.count() < 6:
+        seeds = [
+            CognitiveExercise(name='Visual Memory', description='Observe and recall images to strengthen visual memory and processing.', type='memory', difficulty='easy'),
+            CognitiveExercise(name='Spatial Recall', description='Navigate and remember sequences to improve spatial awareness.', type='pattern', difficulty='hard'),
+        ]
+        for s in seeds:
+            db.session.add(s)
+        db.session.commit()
+        logger.info("Seeded additional cognitive exercises")
+
 def run_schedule():
     """Run scheduled tasks in a continuous loop"""
     while True:

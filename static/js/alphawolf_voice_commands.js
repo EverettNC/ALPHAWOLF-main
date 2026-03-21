@@ -3,20 +3,36 @@
  * Part of The Christman AI Project - Powered by LumaCognify AI
  */
 
+// TTS helper
+function speakText(text) {
+    fetch('/api/tts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text: text})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.url) {
+            new Audio(data.url).play();
+        }
+    })
+    .catch(() => {});
+}
+
 // Commands configuration
 const voiceCommands = {
     navigation: {
-        'go home': () => navigateTo('/home'),
-        'go to home': () => navigateTo('/home'),
+        'go home': () => { speakText('Going home'); navigateTo('/home'); },
+        'go to home': () => { speakText('Going home'); navigateTo('/home'); },
         'homepage': () => navigateTo('/home'),
         'go to login': () => navigateTo('/login'),
         'login page': () => navigateTo('/login'),
-        'go to dashboard': () => handleDashboardNavigation(),
+        'go to dashboard': () => { speakText('Opening your dashboard'); handleDashboardNavigation(); },
         'open dashboard': () => handleDashboardNavigation(),
         'show dashboard': () => handleDashboardNavigation(),
-        'go to exercises': () => navigateTo('/cognitive_exercises'),
+        'go to exercises': () => { speakText('Going to exercises'); navigateTo('/cognitive_exercises'); },
         'open exercises': () => navigateTo('/cognitive_exercises'),
-        'go to reminders': () => navigateTo('/reminders'),
+        'go to reminders': () => { speakText('Opening your reminders'); navigateTo('/reminders'); },
         'open reminders': () => navigateTo('/reminders'),
         'show reminders': () => navigateTo('/reminders'),
         'go to safety zones': () => navigateTo('/safety_zones'),
@@ -26,7 +42,7 @@ const voiceCommands = {
         'learning resources': () => navigateTo('/learning_corner'),
         'go to caregivers': () => navigateTo('/caregivers_page'),
         'open caregivers page': () => navigateTo('/caregivers_page'),
-        'go to memory lane': () => navigateTo('/memory_lane'),
+        'go to memory lane': () => { speakText('Opening Memory Lane'); navigateTo('/memory_lane'); },
         'open memories': () => navigateTo('/memory_lane'),
         'view memories': () => navigateTo('/memory_lane'),
         'go to profile': () => navigateTo('/user_profile'),
@@ -117,9 +133,21 @@ function processVoiceCommand(speech) {
         }
     }
     
-    // If no command was recognized but wake word was used, show help
+    // If no command was recognized but wake word was used, send to AI
     if (!commandFound && hasWakeWord) {
-        showFeedback("Command not recognized. Try 'help' for available commands.", 'warning');
+        fetch('/process_voice_command', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({command: speech})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.response) {
+                showFeedback(data.response.substring(0, 60), 'info');
+                speakText(data.response);
+            }
+        })
+        .catch(() => showFeedback("Command not recognized. Try 'help' for available commands.", 'warning'));
     }
 }
 

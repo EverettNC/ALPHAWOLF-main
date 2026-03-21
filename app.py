@@ -1698,6 +1698,19 @@ def derek_health():
             'error': str(e)
         }), 500
 
+@app.route('/api/tts', methods=['POST'])
+def api_tts():
+    """Generate speech audio from text and return a playable URL."""
+    data = request.json or {}
+    text = (data.get('text') or '').strip()
+    if not text:
+        return jsonify({'success': False, 'error': 'No text provided'}), 400
+    voice_id = data.get('voice_id', 'female_default')
+    result = tts_engine.generate_speech(text, voice_id=voice_id)
+    if result.get('success'):
+        return jsonify({'success': True, 'url': result['url'], 'text': text})
+    return jsonify({'success': False, 'error': result.get('error', 'TTS failed')}), 500
+
 # ============================================================================
 # REGISTER MEMORY LANE API ROUTES
 # ============================================================================

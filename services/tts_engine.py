@@ -6,54 +6,46 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
+ELEVENLABS_VOICE_ID = os.environ.get("VOICE_ID", "")
+
 class TTSEngine:
-    """Text-to-Speech engine for generating voice responses."""
-    
+    """Text-to-Speech engine — ElevenLabs primary, gTTS fallback."""
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.cache_dir = os.path.join('static', 'audio', 'tts_cache')
-        
-        # Create cache directory if it doesn't exist
         os.makedirs(self.cache_dir, exist_ok=True)
-        
-        # Voice configuration
+
         self.voices = {
-            'female_default': {
-                'language': 'en',
-                'gender': 'female',
-                'rate': 1.0,
-                'pitch': 1.0
-            },
-            'male_default': {
-                'language': 'en',
-                'gender': 'male',
-                'rate': 1.0,
-                'pitch': 1.0
-            },
-            'female_slow': {
-                'language': 'en',
-                'gender': 'female',
-                'rate': 0.8,
-                'pitch': 1.0
-            },
-            'male_slow': {
-                'language': 'en',
-                'gender': 'male',
-                'rate': 0.8,
-                'pitch': 1.0
-            }
+            'female_default': {'language': 'en', 'gender': 'female', 'rate': 1.0, 'pitch': 1.0},
+            'male_default':   {'language': 'en', 'gender': 'male',   'rate': 1.0, 'pitch': 1.0},
+            'female_slow':    {'language': 'en', 'gender': 'female', 'rate': 0.8, 'pitch': 1.0},
+            'male_slow':      {'language': 'en', 'gender': 'male',   'rate': 0.8, 'pitch': 1.0},
         }
-        
-        # Try to import required libraries
+
+        # ElevenLabs
+        self.elevenlabs_available = False
+        if ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID:
+            try:
+                from elevenlabs.client import ElevenLabs as EL
+                self._el_client = EL(api_key=ELEVENLABS_API_KEY)
+                self.elevenlabs_available = True
+                self.logger.info("ElevenLabs TTS ready (voice_id=%s)", ELEVENLABS_VOICE_ID)
+            except Exception as e:
+                self.logger.warning("ElevenLabs init failed: %s", e)
+
+        # gTTS fallback
         self.gtts_available = False
         try:
-            from gtts import gTTS
+            from gtts import gTTS  # noqa: F401
             self.gtts_available = True
-            self.logger.info("gTTS library available for TTS generation")
+            self.logger.info("gTTS available as TTS fallback")
         except ImportError:
-            self.logger.warning("gTTS library not available, TTS generation will be limited")
-        
-        self.logger.info("TTS Engine initialized")
+            self.logger.warning("gTTS not available")
+
+        self.logger.info("TTS Engine initialized (elevenlabs=%s, gtts=%s)",
+                         self.elevenlabs_available, self.gtts_available)
     
     def synthesize(self, text, voice_id='female_default', **kwargs):
         """
@@ -63,75 +55,63 @@ class TTSEngine:
         return self.generate_speech(text, voice_id, cache=kwargs.get('cache', True))
     
     def generate_speech(self, text, voice_id='female_default', cache=True):
-        """
-        Generate speech audio from text.
-        
-        Args:
-            text: Text to convert to speech
-            voice_id: ID of voice to use
-            cache: Whether to cache the result
-            
-        Returns:
-            dict: Result with file path or error
-        """
-        try:
-            # Check if text is empty
-            if not text or not text.strip():
-                return {
-                    'success': False,
-                    'error': 'Empty text provided',
-                    'timestamp': datetime.utcnow().isoformat()
-                }
-            
-            # Get voice configuration
-            voice = self.voices.get(voice_id, self.voices['female_default'])
-            
-            # Generate cache key based on text and voice
-            cache_key = hashlib.md5((text + str(voice)).encode()).hexdigest()
-            cache_path = os.path.join(self.cache_dir, f"{cache_key}.mp3")
-            
-            # Check cache if enabled
-            if cache and os.path.exists(cache_path):
+        """Generate speech — ElevenLabs first, gTTS fallback."""
+        if not text or not text.strip():
+            return {'success': False, 'error': 'Empty text provided',
+                    'timestamp': datetime.utcnow().isoformat()}
+
+        voice = self.voices.get(voice_id, self.voices['female_default'])
+        cache_key = hashlib.md5((text + voice_id).encode()).hexdigest()
+        cache_path = os.path.join(self.cache_dir, f"{cache_key}.mp3")
+
+        if cache and os.path.exists(cache_path):
+            return {'success': True, 'path': cache_path, 'cached': True,
+                    'url': '/static/audio/tts_cache/' + os.path.basename(cache_path),
+                    'timestamp': datetime.utcnow().isoformat()}
+
+        # --- ElevenLabs ---
+        if self.elevenlabs_available:
+            try:
+                audio = self._el_client.text_to_speech.convert(
+                    voice_id=ELEVENLABS_VOICE_ID,
+                    text=text,
+                    model_id="eleven_monolingual_v1",
+                )
+                with open(cache_path, 'wb') as f:
+                    for chunk in audio:
+                        f.write(chunk)
                 return {
                     'success': True,
                     'path': cache_path,
-                    'cached': True,
-                    'timestamp': datetime.utcnow().isoformat()
+                    'cached': False,
+                    'voice': 'elevenlabs',
+                    'url': '/static/audio/tts_cache/' + os.path.basename(cache_path),
+                    'timestamp': datetime.utcnow().isoformat(),
                 }
-            
-            # Generate speech
-            if self.gtts_available:
+            except Exception as e:
+                self.logger.warning("ElevenLabs generation failed, falling back to gTTS: %s", e)
+
+        # --- gTTS fallback ---
+        if self.gtts_available:
+            try:
                 from gtts import gTTS
-                
-                # Create gTTS object with the text and desired parameters
                 tts = gTTS(text=text, lang=voice['language'], slow=(voice['rate'] < 0.9))
-                
-                # Save to file
                 tts.save(cache_path)
-                
                 return {
                     'success': True,
                     'path': cache_path,
                     'cached': False,
                     'voice': voice_id,
-                    'timestamp': datetime.utcnow().isoformat()
+                    'url': '/static/audio/tts_cache/' + os.path.basename(cache_path),
+                    'timestamp': datetime.utcnow().isoformat(),
                 }
-            else:
-                # Fallback if gTTS is not available
-                return {
-                    'success': False,
-                    'error': 'TTS library not available',
-                    'text': text,  # Return text for display
-                    'timestamp': datetime.utcnow().isoformat()
-                }
-        except Exception as e:
-            self.logger.error(f"Error generating speech: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e),
-                'text': text,  # Return text for display
-                'timestamp': datetime.utcnow().isoformat()
-            }
+            except Exception as e:
+                self.logger.error("gTTS generation failed: %s", e)
+                return {'success': False, 'error': str(e), 'text': text,
+                        'timestamp': datetime.utcnow().isoformat()}
+
+        return {'success': False, 'error': 'No TTS engine available', 'text': text,
+                'timestamp': datetime.utcnow().isoformat()}
     
     def speak_text(self, text, voice_id='female_default', context=None):
         """
@@ -153,14 +133,8 @@ class TTSEngine:
             # Generate speech
             result = self.generate_speech(text, voice_id)
             
-            # If successful, add additional playback information
             if result['success']:
                 result['text'] = text
-                result['url'] = '/static/audio/tts_cache/' + os.path.basename(result['path'])
-                
-                # Add SSML markup for web audio API (not actually used by gTTS but included for client)
-                ssml = f'<speak>{text}</speak>'
-                result['ssml'] = ssml
             
             return result
         except Exception as e:

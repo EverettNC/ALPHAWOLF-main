@@ -442,13 +442,23 @@
         const testVoiceBtn = document.getElementById('testVoiceBtn');
         if (testVoiceBtn) {
             testVoiceBtn.addEventListener('click', function() {
-                const testText = document.getElementById('testVoiceInput').value;
-                if (testText) {
-                    // In a real implementation, this would trigger text-to-speech
-                    console.log('Testing voice with text:', testText);
-                    alert('Voice test: ' + testText);
-                    // Here you would call the TTS engine to speak the text
-                }
+                const testText = document.getElementById('testVoiceInput').value.trim();
+                if (!testText) return;
+                testVoiceBtn.disabled = true;
+                fetch('/api/tts', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text: testText})
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success && data.url) {
+                        const audio = new Audio(data.url);
+                        audio.play();
+                    }
+                })
+                .catch(console.error)
+                .finally(() => { testVoiceBtn.disabled = false; });
             });
         }
         

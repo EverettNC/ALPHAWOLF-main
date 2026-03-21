@@ -1,0 +1,22 @@
+{
+  "episodic": [],
+  "semantic": [],
+  "emotional": [
+    {
+      "node_id": "9a40e59b0689117d",
+      "source": "AlphaWolf",
+      "type": "emotional",
+      "timestamp": "2026-03-20T19:41:14.845143",
+      "payload": {
+        "input": "Help me remember my family",
+        "response": "\ud83d\udea8 I've detected a potential emergency. I'm alerting your caregiver immediately. Help is on the way. Please stay calm and safe.",
+        "intent": "emergency",
+        "confidence": 1.0,
+        "emotional_state": {}
+      },
+      "ltp_weight": 1.4,
+      "access_count": 3
+    }
+  ],
+  "procedural": []
+}

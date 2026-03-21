@@ -1,0 +1,18 @@
+[
+  {
+    "timestamp": "2026-03-20T19:41:14.845527",
+    "node_id": "9a40e59b0689117d",
+    "memory_type": "emotional",
+    "old_weight": 1.0,
+    "new_weight": 1.2,
+    "emotional": true
+  },
+  {
+    "timestamp": "2026-03-20T19:43:25.280064",
+    "node_id": "9a40e59b0689117d",
+    "memory_type": "emotional",
+    "old_weight": 1.2,
+    "new_weight": 1.4,
+    "emotional": true
+  }
+]

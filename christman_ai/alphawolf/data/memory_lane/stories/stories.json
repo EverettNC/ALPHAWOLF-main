@@ -1,0 +1,18 @@
+[
+  {
+    "id": "story_1",
+    "title": "How We Met",
+    "content": "It was a beautiful spring day when we first crossed paths...",
+    "category": "Love Story",
+    "date": "1994-04-15",
+    "created_at": "2026-03-20T19:49:49.836824"
+  },
+  {
+    "id": "story_2",
+    "title": "First Day of School",
+    "content": "I remember walking into that classroom, nervous but excited...",
+    "category": "Childhood",
+    "date": "1965-09-01",
+    "created_at": "2026-03-20T19:49:49.836829"
+  }
+]

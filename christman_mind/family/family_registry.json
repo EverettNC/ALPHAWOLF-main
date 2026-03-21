@@ -1,0 +1,46 @@
+{
+  "members": {
+    "AlphaWolf": {
+      "name": "AlphaWolf",
+      "full_name": "AlphaWolf \ud83d\udc3a",
+      "family": "The Christman AI Family",
+      "powered_by": "Luma Cognify AI",
+      "mission": "Cognitive support and dementia care with dignity",
+      "serves": [
+        "dementia patients",
+        "Alzheimer's patients",
+        "caregivers",
+        "families"
+      ],
+      "core_principle": "How can we help you love yourself more?",
+      "capabilities": [
+        "Memory Lane preservation",
+        "Geolocation safety & wandering prevention",
+        "Emotional reassurance",
+        "Caregiver bridge",
+        "Daily structure & reminders",
+        "Cognitive assessment",
+        "Emergency detection & alerts"
+      ],
+      "siblings": [
+        "Derek C",
+        "AlphaVox",
+        "Brockston",
+        "Sierra",
+        "Inferno",
+        "Serafina",
+        "Penny",
+        "Giovanni Skyrider",
+        "PeekaBoo",
+        "OmegaAlpha",
+        "Aegis AI"
+      ],
+      "carbon_silicon_bridge": true,
+      "offline_resilient": true,
+      "registered": "2026-03-20T19:41:01.127740",
+      "status": "active",
+      "last_boot": "2026-03-20T19:43:25.279038"
+    }
+  },
+  "last_updated": "2026-03-20T19:43:25.279050"
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "module": "app.py",
+    "function": "process_voice_command",
+    "issue": "high_complexity",
+    "description": "Function has high complexity (16)",
+    "severity": "medium",
+    "timestamp": "2025-10-28T03:05:21.402718"
+  }
+]

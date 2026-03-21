@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "name": "Alzheimer's Disease",
+    "description": "Information about Alzheimer's disease causes, symptoms, and research."
+  },
+  {
+    "id": 2,
+    "name": "Dementia",
+    "description": "General information about dementia types, stages, and management."
+  },
+  {
+    "id": 3,
+    "name": "Caregiving",
+    "description": "Resources and guidance for caregivers of people with dementia."
+  },
+  {
+    "id": 4,
+    "name": "Treatment",
+    "description": "Current and emerging treatments for Alzheimer's and dementia."
+  },
+  {
+    "id": 5,
+    "name": "Prevention",
+    "description": "Strategies that may help reduce risk or delay onset of dementia."
+  },
+  {
+    "id": 6,
+    "name": "Research Updates",
+    "description": "Latest findings and breakthroughs in dementia research."
+  },
+  {
+    "id": 7,
+    "name": "Daily Care",
+    "description": "Practical tips for daily care and management of symptoms."
+  },
+  {
+    "id": 8,
+    "name": "Technology",
+    "description": "Tech innovations helping people with dementia and their caregivers."
+  },
+  {
+    "id": 9,
+    "name": "Safety",
+    "description": "Creating safe environments and preventing wandering."
+  },
+  {
+    "id": 10,
+    "name": "Communication",
+    "description": "Effective communication strategies with people who have dementia."
+  }
+]

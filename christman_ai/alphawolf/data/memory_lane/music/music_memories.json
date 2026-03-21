@@ -1,0 +1,20 @@
+[
+  {
+    "id": "music_1",
+    "title": "Our Song",
+    "artist": "Unknown",
+    "memory": "Played at our wedding",
+    "year": "1995",
+    "category": "Wedding",
+    "created_at": "2026-03-20T19:49:49.836614"
+  },
+  {
+    "id": "music_2",
+    "title": "Road Trip Playlist",
+    "artist": "Various",
+    "memory": "Cross-country adventure",
+    "year": "2003",
+    "category": "Travel",
+    "created_at": "2026-03-20T19:49:49.836619"
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "id": "demo_1",
+    "name": "Family Gatherings",
+    "description": "Special moments with loved ones over the years",
+    "category": "Family",
+    "cover_image": "/static/img/album-placeholder.jpg",
+    "item_count": 0,
+    "last_updated": "2026-03-20",
+    "created_at": "2020-01-15",
+    "items": []
+  },
+  {
+    "id": "demo_2",
+    "name": "Career Highlights",
+    "description": "Professional accomplishments and milestones",
+    "category": "Career",
+    "cover_image": "/static/img/album-placeholder.jpg",
+    "item_count": 0,
+    "last_updated": "2026-03-20",
+    "created_at": "2018-05-10",
+    "items": []
+  },
+  {
+    "id": "demo_3",
+    "name": "Special Places",
+    "description": "Locations that hold special memories",
+    "category": "Travel",
+    "cover_image": "/static/img/album-placeholder.jpg",
+    "item_count": 0,
+    "last_updated": "2026-03-20",
+    "created_at": "2019-03-20",
+    "items": []
+  }
+]

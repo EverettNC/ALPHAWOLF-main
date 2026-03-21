@@ -52,6 +52,12 @@ except Exception as e:
     logger.warning(f"KnowledgeEngine not available: {e}")
     KnowledgeEngine = None
 
+try:
+    from alphawolf_brain_original import AlphaWolfBrain as OriginalBrain
+except Exception as e:
+    logger.warning(f"Original brain unavailable: {e}")
+    OriginalBrain = None
+
 
 class AlphaWolfBrain:
     """
@@ -113,6 +119,9 @@ class AlphaWolfBrain:
 
         logger.info(f"🏎️🐺 AlphaWolf Ferrari Engine initialized at: {memory_path}")
         logger.info("💙 Mission active: Cognitive support with dignity and care")
+
+        if OriginalBrain:
+            self.original_brain = OriginalBrain(memory_path=memory_path)
 
     def generate_greeting(self) -> str:
         """Generate a warm, welcoming greeting"""
@@ -250,7 +259,8 @@ class AlphaWolfBrain:
             except Exception as e:
                 logger.debug(f"Learning integration skipped: {e}")
         
-        return {
+        from christman_mind_integration import get_mind_integration
+        result = {
             "response": response,
             "intent": "memory_assist" if is_memory_query else "caregiver" if is_caregiver_query else "general",
             "confidence": knowledge_confidence,
@@ -258,6 +268,8 @@ class AlphaWolfBrain:
             "emotional_state": self.emotional_state,
             "stats": self.stats.copy()
         }
+        get_mind_integration().process_interaction({**result, "input": input_text})
+        return result
 
     def _generate_memory_assistance(self, input_text: str, memory_context: Any, local_analysis: str) -> str:
         """Generate empathetic memory assistance response"""
